@@ -1,6 +1,7 @@
 package fsm
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -8,15 +9,15 @@ import (
 
 //TransitionListener ....
 type TransitionListener interface {
-	OnStateEnter(event, toState string, args ...interface{}) error
-	OnAction(fromState, event string, action Action, toState string, args ...interface{}) error
-	OnStateExit(fromState, event string, args ...interface{}) error
+	OnStateEnter(ctx context.Context, event, toState string, args ...interface{}) error
+	OnAction(ctx context.Context, fromState, event string, action Action, toState string, args ...interface{}) error
+	OnStateExit(ctx context.Context, fromState, event string, args ...interface{}) error
 }
 
 //Action ....
 type Action struct {
 	Action  string
-	Handler func(args ...interface{}) error
+	Handler func(ctx context.Context, args ...interface{}) error
 }
 
 // Transition ....
@@ -73,27 +74,27 @@ func (m *StateMachine) WithTransitionListener(l TransitionListener) *StateMachin
 }
 
 // Event ....
-func (m *StateMachine) Event(currentState, event string, args ...interface{}) error {
+func (m *StateMachine) Event(ctx context.Context, currentState, event string, args ...interface{}) error {
 	trans := m.findTransMatching(currentState, event)
 	if trans == nil {
 		return &StatemError{event, currentState}
 	}
 	changingStates := currentState != trans.To
 	if changingStates && m.listener != nil {
-		if err := m.listener.OnStateExit(currentState, event, args...); err != nil {
+		if err := m.listener.OnStateExit(ctx, currentState, event, args...); err != nil {
 			return err
 		}
 	}
 
 	if m.listener != nil && trans.Action.Action != "" {
-		err := m.listener.OnAction(currentState, event, trans.Action, trans.To, args...)
+		err := m.listener.OnAction(ctx, currentState, event, trans.Action, trans.To, args...)
 		if err != nil {
 			return err
 		}
 	}
 
 	if changingStates && m.listener != nil {
-		if err := m.listener.OnStateEnter(event, trans.To, args...); err != nil {
+		if err := m.listener.OnStateEnter(ctx, event, trans.To, args...); err != nil {
 			return err
 		}
 	}
