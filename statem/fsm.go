@@ -1,6 +1,7 @@
 package statem
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -18,13 +19,13 @@ type transition struct {
 }
 
 //StateEnterFunc ....
-type StateEnterFunc = func(event, to string, args ...interface{}) error
+type StateEnterFunc = func(ctx context.Context, event, to string, args ...interface{}) error
 
 //ActionFunc ....
-type ActionFunc = func(from, event string, action string, to string, args ...interface{}) error
+type ActionFunc = func(ctx context.Context, from, event string, action string, to string, args ...interface{}) error
 
 //StateExitFunc ....
-type StateExitFunc = func(from, event string, args ...interface{}) error
+type StateExitFunc = func(ctx context.Context, from, event string, args ...interface{}) error
 
 //ErrorFunc ....
 type ErrorFunc = func(err error, from, event string, args ...interface{})
@@ -93,9 +94,9 @@ func (m *FSM) WithErrorFunc(f ErrorFunc) *FSM {
 }
 
 //Event ....
-func (m *FSM) Event(currentState, ev string, args ...interface{}) {
+func (m *FSM) Event(ctx context.Context, currentState, ev string, args ...interface{}) {
 	if !m.pool.Serve(func() {
-		err := m.event(currentState, ev, args...)
+		err := m.event(ctx, currentState, ev, args...)
 		if err != nil && m.ef != nil {
 			m.ef(err, currentState, ev, args...)
 		}
@@ -105,23 +106,23 @@ func (m *FSM) Event(currentState, ev string, args ...interface{}) {
 }
 
 // Event ....
-func (m *FSM) event(current, event string, args ...interface{}) error {
+func (m *FSM) event(ctx context.Context, current, event string, args ...interface{}) error {
 	for _, trans := range m.transitions {
 		if trans.from == current && trans.event == event {
 			changingStates := current != trans.to
 			if changingStates && m.se != nil {
-				if err := m.se(current, event, args...); err != nil {
+				if err := m.se(ctx, current, event, args...); err != nil {
 					return err
 				}
 			}
 			if m.af != nil && trans.action != "" {
-				err := m.af(current, event, trans.action, trans.to, args...)
+				err := m.af(ctx, current, event, trans.action, trans.to, args...)
 				if err != nil {
 					return err
 				}
 			}
 			if changingStates && m.se != nil {
-				if err := m.se(event, trans.to, args...); err != nil {
+				if err := m.se(ctx, event, trans.to, args...); err != nil {
 					return err
 				}
 			}
