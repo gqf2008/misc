@@ -87,6 +87,12 @@ func (m *FSM) WithStateExitFunc(f StateExitFunc) *FSM {
 	return m
 }
 
+//WithActionFunc ....
+func (m *FSM) WithActionFunc(f ActionFunc) *FSM {
+	m.af = f
+	return m
+}
+
 //WithStateEnterFunc ....
 func (m *FSM) WithStateEnterFunc(f StateEnterFunc) *FSM {
 	m.sef = f
