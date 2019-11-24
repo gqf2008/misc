@@ -81,6 +81,12 @@ func (m *FSM) WithTransition(from, event, action, to string) *FSM {
 	return m
 }
 
+//WithStateExitFunc ....
+func (m *FSM) WithStateExitFunc(f StateExitFunc) *FSM {
+	m.se = f
+	return m
+}
+
 //WithStateEnterFunc ....
 func (m *FSM) WithStateEnterFunc(f StateEnterFunc) *FSM {
 	m.sef = f
