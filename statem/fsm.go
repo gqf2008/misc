@@ -2,7 +2,6 @@ package statem
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -104,8 +103,8 @@ func (m *FSM) WithErrorFunc(f ErrorFunc) *FSM {
 }
 
 //Event ....
-func (m *FSM) Event(ctx context.Context, currentState, ev string, args ...interface{}) {
-	if !m.pool.Serve(func() {
+func (m *FSM) Event(ctx context.Context, currentState, ev string, args ...interface{}) bool {
+	return m.pool.Serve(func() {
 		defer func() {
 			if err := recover(); err != nil && m.ef != nil {
 				m.ef(err.(error), currentState, ev, args...)
@@ -115,9 +114,7 @@ func (m *FSM) Event(ctx context.Context, currentState, ev string, args ...interf
 		if err != nil && m.ef != nil {
 			m.ef(err, currentState, ev, args...)
 		}
-	}) && m.ef != nil {
-		m.ef(errors.New("没有足够的工作进程"), currentState, ev, args...)
-	}
+	})
 }
 
 // Event ....
