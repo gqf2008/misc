@@ -108,6 +108,11 @@ func (m *FSM) WithErrorFunc(f ErrorFunc) *FSM {
 //Event ....
 func (m *FSM) Event(ctx context.Context, currentState, ev string, args ...interface{}) {
 	if !m.pool.Serve(func() {
+		defer func() {
+			if err := recover(); err != nil && m.ef != nil {
+				m.ef(err.(error), currentState, ev, args...)
+			}
+		}()
 		err := m.event(ctx, currentState, ev, args...)
 		if err != nil && m.ef != nil {
 			m.ef(err, currentState, ev, args...)
