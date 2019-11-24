@@ -16,6 +16,7 @@ type transition struct {
 	event  string
 	action string
 	to     string
+	f      ActionFunc
 }
 
 //StateEnterFunc ....
@@ -38,7 +39,6 @@ type event struct {
 // FSM ....
 type FSM struct {
 	sef         StateEnterFunc
-	af          ActionFunc
 	se          StateExitFunc
 	ef          ErrorFunc
 	transitions []transition
@@ -76,20 +76,18 @@ func (m *FSM) Stop() {
 }
 
 //WithTransition ....
-func (m *FSM) WithTransition(from, event, action, to string) *FSM {
-	m.transitions = append(m.transitions, transition{from, event, action, to})
+func (m *FSM) WithTransition(from, event, action, to string, f ...ActionFunc) *FSM {
+	var af ActionFunc
+	if len(f) > 0 {
+		af = f[0]
+	}
+	m.transitions = append(m.transitions, transition{from, event, action, to, af})
 	return m
 }
 
 //WithStateExitFunc ....
 func (m *FSM) WithStateExitFunc(f StateExitFunc) *FSM {
 	m.se = f
-	return m
-}
-
-//WithActionFunc ....
-func (m *FSM) WithActionFunc(f ActionFunc) *FSM {
-	m.af = f
 	return m
 }
 
@@ -132,8 +130,8 @@ func (m *FSM) event(ctx context.Context, current, event string, args ...interfac
 					return err
 				}
 			}
-			if m.af != nil && trans.action != "" {
-				err := m.af(ctx, current, event, trans.action, trans.to, args...)
+			if trans.action != "" && trans.f != nil {
+				err := trans.f(ctx, current, event, trans.action, trans.to, args...)
 				if err != nil {
 					return err
 				}
