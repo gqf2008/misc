@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
-
-	"github.com/gqf2008/misc"
 )
 
 // Transition ....
@@ -41,7 +39,7 @@ type FSM struct {
 	se          StateExitFunc
 	ef          ErrorFunc
 	transitions []transition
-	pool        *misc.WorkerPool
+	//pool        *misc.WorkerPool
 }
 
 // StateError ....
@@ -57,22 +55,22 @@ func (e *StateError) Error() string {
 // New ....
 func New(poolSize int) *FSM {
 	fsm := &FSM{
-		pool: &misc.WorkerPool{
-			MaxWorkersCount: poolSize,
-		},
+		// pool: &misc.WorkerPool{
+		// 	MaxWorkersCount: poolSize,
+		// },
 	}
 	return fsm
 }
 
 //Start ....
-func (m *FSM) Start() {
-	m.pool.Start()
-}
+// func (m *FSM) Start() {
+// 	m.pool.Start()
+// }
 
-//Stop ....
-func (m *FSM) Stop() {
-	m.pool.Stop()
-}
+// //Stop ....
+// func (m *FSM) Stop() {
+// 	m.pool.Stop()
+// }
 
 //WithTransition ....
 func (m *FSM) WithTransition(from, event, action, to string, f ...ActionFunc) *FSM {
@@ -103,18 +101,8 @@ func (m *FSM) WithErrorFunc(f ErrorFunc) *FSM {
 }
 
 //Event ....
-func (m *FSM) Event(ctx context.Context, currentState, ev string, args ...interface{}) bool {
-	return m.pool.Serve(func() {
-		defer func() {
-			if err := recover(); err != nil && m.ef != nil {
-				m.ef(err.(error), currentState, ev, args...)
-			}
-		}()
-		err := m.event(ctx, currentState, ev, args...)
-		if err != nil && m.ef != nil {
-			m.ef(err, currentState, ev, args...)
-		}
-	})
+func (m *FSM) Event(ctx context.Context, currentState, ev string, args ...interface{}) error {
+	return m.event(ctx, currentState, ev, args...)
 }
 
 // Event ....
