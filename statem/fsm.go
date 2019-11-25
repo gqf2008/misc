@@ -25,9 +25,6 @@ type ActionFunc = func(ctx context.Context, from, event string, action string, t
 //StateExitFunc ....
 type StateExitFunc = func(ctx context.Context, from, event string, args ...interface{}) error
 
-//ErrorFunc ....
-type ErrorFunc = func(err error, from, event string, args ...interface{})
-
 type event struct {
 	ev   string
 	args []interface{}
@@ -37,7 +34,6 @@ type event struct {
 type FSM struct {
 	sef         StateEnterFunc
 	se          StateExitFunc
-	ef          ErrorFunc
 	transitions []transition
 	//pool        *misc.WorkerPool
 }
@@ -94,12 +90,6 @@ func (m *FSM) WithStateEnterFunc(f StateEnterFunc) *FSM {
 	return m
 }
 
-//WithErrorFunc ....
-func (m *FSM) WithErrorFunc(f ErrorFunc) *FSM {
-	m.ef = f
-	return m
-}
-
 //Event ....
 func (m *FSM) Event(ctx context.Context, currentState, ev string, args ...interface{}) error {
 	return m.event(ctx, currentState, ev, args...)
@@ -121,8 +111,8 @@ func (m *FSM) event(ctx context.Context, current, event string, args ...interfac
 					return err
 				}
 			}
-			if changingStates && m.se != nil {
-				if err := m.se(ctx, event, trans.to, args...); err != nil {
+			if changingStates && m.sef != nil {
+				if err := m.sef(ctx, event, trans.to, args...); err != nil {
 					return err
 				}
 			}
