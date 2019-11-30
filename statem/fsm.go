@@ -42,10 +42,11 @@ type FSM struct {
 type StateError struct {
 	BadEvent     string
 	CurrentState string
+	Args         []interface{}
 }
 
 func (e *StateError) Error() string {
-	return fmt.Sprintf("状态机发生错误: 当触发[%s]事件时当前状态[%s]没有找到转换器\n", e.BadEvent, e.CurrentState)
+	return fmt.Sprintf("状态机发生错误: 当触发[%s]事件时当前状态[%s]没有找到转换器 Args: %+v\n", e.BadEvent, e.CurrentState, e.Args)
 }
 
 // New ....
@@ -119,7 +120,7 @@ func (m *FSM) event(ctx context.Context, current, event string, args ...interfac
 			return nil
 		}
 	}
-	return &StateError{event, current}
+	return &StateError{event, current, args}
 }
 
 // ExportPNG 导出状态图
