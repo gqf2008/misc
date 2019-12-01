@@ -74,8 +74,8 @@ func New(poolSize int) *FSM {
 // 	m.pool.Stop()
 // }
 
-//WithTransitionWithActionFunc ....
-func (m *FSM) WithTransitionWithActionFunc(from, event, to string, f ...ActionFunc) *FSM {
+//WithTransition ....
+func (m *FSM) WithTransition(from, event, to string, f ...ActionFunc) *FSM {
 	var action = ""
 	var af ActionFunc
 	if len(f) > 0 {
