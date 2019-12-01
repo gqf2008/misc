@@ -1,0 +1,13 @@
+[
+    [
+        "state(A)",
+        "event(E)",
+        "state(B)",
+        "do-action" //optional
+    ],
+    [
+        "state(A)",
+        "event(E)",
+        "state(B)"
+    ]
+]

@@ -2,8 +2,12 @@ package statem
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"os/exec"
+	"reflect"
 	"strings"
 )
 
@@ -33,6 +37,7 @@ type event struct {
 // FSM ....
 type FSM struct {
 	sef         StateEnterFunc
+	af          ActionFunc
 	se          StateExitFunc
 	transitions []transition
 	//pool        *misc.WorkerPool
@@ -69,13 +74,62 @@ func New(poolSize int) *FSM {
 // 	m.pool.Stop()
 // }
 
-//WithTransition ....
-func (m *FSM) WithTransition(from, event, action, to string, f ...ActionFunc) *FSM {
+//WithTransitionWithActionFunc ....
+func (m *FSM) WithTransitionWithActionFunc(from, event, to string, f ...ActionFunc) *FSM {
+	var action = ""
 	var af ActionFunc
 	if len(f) > 0 {
 		af = f[0]
+		typ := reflect.TypeOf(af)
+		action = typ.Name()
 	}
 	m.transitions = append(m.transitions, transition{from, event, action, to, af})
+	return m
+}
+
+//WithTransitionActionName ....
+func (m *FSM) WithTransitionActionName(from, event, to string, action ...string) *FSM {
+	var a = ""
+	if len(action) > 0 {
+		a = action[0]
+	}
+	m.transitions = append(m.transitions, transition{from, event, a, to, nil})
+	return m
+}
+
+//WithTransitionFromFile ....
+func (m *FSM) WithTransitionFromFile(file string) *FSM {
+	b, err := ioutil.ReadFile(file)
+	if err != nil {
+		panic(err)
+	}
+	return m.WithTransitionFromJSON(b)
+}
+
+//WithTransitionFromJSON ....
+func (m *FSM) WithTransitionFromJSON(b []byte) *FSM {
+	var transitions = [][]string{}
+	err := json.Unmarshal(b, &transitions)
+	if err != nil {
+		panic(err)
+	}
+	for _, a := range transitions {
+		l := len(a)
+		if l < 3 {
+			panic(errors.New("error transition"))
+		}
+		if l > 3 {
+			m.WithTransitionActionName(a[0], a[1], a[2], a[3])
+		} else {
+			m.WithTransitionActionName(a[0], a[1], a[2])
+		}
+	}
+	return m
+}
+
+//WithActionFunc ....
+func (m *FSM) WithActionFunc(f ActionFunc) *FSM {
+	m.af = f
 	return m
 }
 
@@ -106,8 +160,13 @@ func (m *FSM) event(ctx context.Context, current, event string, args ...interfac
 					return err
 				}
 			}
-			if trans.action != "" && trans.f != nil {
+			if trans.f != nil {
 				err := trans.f(ctx, current, event, trans.action, trans.to, args...)
+				if err != nil {
+					return err
+				}
+			} else if trans.action != "" && m.af != nil {
+				err := m.af(ctx, current, event, trans.action, trans.to, args...)
 				if err != nil {
 					return err
 				}
