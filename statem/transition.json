@@ -3,7 +3,7 @@
         "state(A)",
         "event(E)",
         "state(B)",
-        "do-action" //optional
+        "do-action"
     ],
     [
         "state(A)",

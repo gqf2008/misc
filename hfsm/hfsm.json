@@ -1,0 +1,37 @@
+{
+    "Name": "name",
+    "Transitions": [
+        {
+            "From": "from",
+            "Event": "ev",
+            "To": "to",
+            "Action": "",
+            "Child": {
+                "Name": "name",
+                "Transitions": [
+                    {
+                        "Event": "ev",
+                        "To": "to",
+                        "Action": ""
+                    }
+                ]
+            }
+        },
+        {
+            "From": "from",
+            "Event": "ev",
+            "To": "to",
+            "Action": "",
+            "Child": {
+                "Name": "name",
+                "Transitions": [
+                    {
+                        "Event": "ev",
+                        "To": "to",
+                        "Action": ""
+                    }
+                ]
+            }
+        }
+    ]
+}
