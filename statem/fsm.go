@@ -40,6 +40,7 @@ type FSM struct {
 	af          ActionFunc
 	se          StateExitFunc
 	transitions []transition
+	actions     map[string]ActionFunc
 	//pool        *misc.WorkerPool
 }
 
@@ -60,6 +61,13 @@ func New(poolSize int) *FSM {
 		// pool: &misc.WorkerPool{
 		// 	MaxWorkersCount: poolSize,
 		// },
+		actions: map[string]ActionFunc{},
+	}
+	fsm.af = func(ctx context.Context, from, event, action, to string, args ...interface{}) error {
+		if f, has := fsm.actions[action]; has {
+			return f(ctx, from, event, action, to, args...)
+		}
+		return fmt.Errorf("action %s not found,state(%s)->event(%s)->state(%s)", action, from, event, to)
 	}
 	return fsm
 }
@@ -128,8 +136,14 @@ func (m *FSM) WithTransitionFromJSON(b []byte) *FSM {
 }
 
 //WithActionFunc ....
-func (m *FSM) WithActionFunc(f ActionFunc) *FSM {
-	m.af = f
+func (m *FSM) WithActionFunc(action string, f ActionFunc) *FSM {
+	m.actions[action] = f
+	return m
+}
+
+//WithActionFuncs ....
+func (m *FSM) WithActionFuncs(actions map[string]ActionFunc) *FSM {
+	m.actions = actions
 	return m
 }
 
@@ -165,7 +179,7 @@ func (m *FSM) event(ctx context.Context, current, event string, args ...interfac
 				if err != nil {
 					return err
 				}
-			} else if trans.action != "" && m.af != nil {
+			} else if trans.action != "" {
 				err := m.af(ctx, current, event, trans.action, trans.to, args...)
 				if err != nil {
 					return err
@@ -217,6 +231,8 @@ func (m *FSM) ExportWithDetails(outfile string, format string, layout string, sc
 }
 
 func system(c string, dot string) error {
+	fmt.Println(c)
+	fmt.Println(dot)
 	cmd := exec.Command(`/bin/sh`, `-c`, c)
 	cmd.Stdin = strings.NewReader(dot)
 	return cmd.Run()
