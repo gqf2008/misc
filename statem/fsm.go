@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"reflect"
+	"runtime"
 	"strings"
 )
 
@@ -214,14 +215,21 @@ func (m *FSM) ExportJPG(outfile string) error {
 
 // ExportWithDetails  导出状态图
 func (m *FSM) ExportWithDetails(outfile string, format string, layout string, scale string, more string) error {
-	dot := `digraph FSM {
+	dot := `digraph StateMachine {
+
 		rankdir=LR
-		node[width=1 fixedsize=true shape=circle style=filled fillcolor="darkorchid1" ]
+		node[width=1 fixedsize=true shape=ellipse style=filled fillcolor="darkorchid1" ]
 		
 		`
 
 	for _, t := range m.transitions {
-		link := fmt.Sprintf(`%s -> %s [label="%s | %s"]`, t.from, t.to, t.event, t.action)
+		var link string
+		if t.action == "" {
+			link = fmt.Sprintf(`"%s" -> "%s" [label="%s"]`, t.from, t.to, t.event)
+		} else {
+			link = fmt.Sprintf(`"%s" -> "%s" [label="%s | %s"]`, t.from, t.to, t.event, t.action)
+		}
+
 		dot = dot + "\r\n" + link
 	}
 
@@ -233,7 +241,12 @@ func (m *FSM) ExportWithDetails(outfile string, format string, layout string, sc
 func system(c string, dot string) error {
 	fmt.Println(c)
 	fmt.Println(dot)
-	cmd := exec.Command(`/bin/sh`, `-c`, c)
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command(`cmd`, `/C`, c)
+	} else {
+		cmd = exec.Command(`/bin/sh`, `-c`, c)
+	}
 	cmd.Stdin = strings.NewReader(dot)
 	return cmd.Run()
 

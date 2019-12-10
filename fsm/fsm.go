@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -150,7 +151,12 @@ func (m *StateMachine) ExportWithDetails(outfile string, format string, layout s
 		`
 
 	for _, t := range m.transitions {
-		link := fmt.Sprintf(`%s -> %s [label="%s | %s"]`, t.From, t.To, t.Event, t.Action.Action)
+		var link string
+		if t.Action.Action != "" {
+			link = fmt.Sprintf(`"%s" -> "%s" [label="%s | %s"]`, t.From, t.To, t.Event, t.Action.Action)
+		} else {
+			link = fmt.Sprintf(`"%s" -> "%s" [label="%s"]`, t.From, t.To, t.Event)
+		}
 		dot = dot + "\r\n" + link
 	}
 
@@ -160,7 +166,14 @@ func (m *StateMachine) ExportWithDetails(outfile string, format string, layout s
 }
 
 func system(c string, dot string) error {
-	cmd := exec.Command(`/bin/sh`, `-c`, c)
+	fmt.Println(c)
+	fmt.Println(dot)
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		cmd = exec.Command(`cmd`, `/C`, c)
+	} else {
+		cmd = exec.Command(`/bin/sh`, `-c`, c)
+	}
 	cmd.Stdin = strings.NewReader(dot)
 	return cmd.Run()
 
