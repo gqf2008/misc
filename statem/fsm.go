@@ -7,25 +7,24 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
-	"reflect"
 	"runtime"
 	"strings"
 )
 
 // Transition ....
 type transition struct {
-	from   string
-	event  string
-	action string
-	to     string
-	f      ActionFunc
+	from  string
+	event string
+	//action string
+	to string
+	f  ActionFunc
 }
 
 //StateEnterFunc ....
 type StateEnterFunc = func(ctx context.Context, event, to string, args ...interface{}) error
 
 //ActionFunc ....
-type ActionFunc = func(ctx context.Context, from, event string, action string, to string, args ...interface{}) error
+type ActionFunc = func(ctx context.Context, from, event string, to string, args ...interface{}) error
 
 //StateExitFunc ....
 type StateExitFunc = func(ctx context.Context, from, event string, args ...interface{}) error
@@ -64,11 +63,12 @@ func New(poolSize int) *FSM {
 		// },
 		actions: map[string]ActionFunc{},
 	}
-	fsm.af = func(ctx context.Context, from, event, action, to string, args ...interface{}) error {
-		if f, has := fsm.actions[action]; has {
-			return f(ctx, from, event, action, to, args...)
+	fsm.af = func(ctx context.Context, from, event, to string, args ...interface{}) error {
+		if f, has := fsm.actions[event]; has {
+			return f(ctx, from, event, to, args...)
 		}
-		return fmt.Errorf("action %s not found,state(%s)->event(%s)->state(%s)", action, from, event, to)
+		return nil
+		// return fmt.Errorf("action %s not found,state(%s)->event(%s)->state(%s)", from, event, to)
 	}
 	return fsm
 }
@@ -85,26 +85,23 @@ func New(poolSize int) *FSM {
 
 //WithTransition ....
 func (m *FSM) WithTransition(from, event, to string, f ...ActionFunc) *FSM {
-	var action = ""
 	var af ActionFunc
 	if len(f) > 0 {
 		af = f[0]
-		typ := reflect.TypeOf(af)
-		action = typ.Name()
 	}
-	m.transitions = append(m.transitions, transition{from, event, action, to, af})
+	m.transitions = append(m.transitions, transition{from, event, to, af})
 	return m
 }
 
-//WithTransitionActionName ....
-func (m *FSM) WithTransitionActionName(from, event, to string, action ...string) *FSM {
-	var a = ""
-	if len(action) > 0 {
-		a = action[0]
-	}
-	m.transitions = append(m.transitions, transition{from, event, a, to, nil})
-	return m
-}
+// //WithTransitionActionName ....
+// func (m *FSM) WithTransitionActionName(from, event, to string, action ...string) *FSM {
+// 	var a = ""
+// 	if len(action) > 0 {
+// 		a = action[0]
+// 	}
+// 	m.transitions = append(m.transitions, transition{from, event, a, to, nil})
+// 	return m
+// }
 
 //WithTransitionFromFile ....
 func (m *FSM) WithTransitionFromFile(file string) *FSM {
@@ -127,11 +124,7 @@ func (m *FSM) WithTransitionFromJSON(b []byte) *FSM {
 		if l < 3 {
 			panic(errors.New("error transition"))
 		}
-		if l > 3 {
-			m.WithTransitionActionName(a[0], a[1], a[2], a[3])
-		} else {
-			m.WithTransitionActionName(a[0], a[1], a[2])
-		}
+		m.WithTransition(a[0], a[1], a[2])
 	}
 	return m
 }
@@ -176,12 +169,12 @@ func (m *FSM) event(ctx context.Context, current, event string, args ...interfac
 				}
 			}
 			if trans.f != nil {
-				err := trans.f(ctx, current, event, trans.action, trans.to, args...)
+				err := trans.f(ctx, current, event, trans.to, args...)
 				if err != nil {
 					return err
 				}
-			} else if trans.action != "" {
-				err := m.af(ctx, current, event, trans.action, trans.to, args...)
+			} else {
+				err := m.af(ctx, current, event, trans.to, args...)
 				if err != nil {
 					return err
 				}
@@ -224,12 +217,7 @@ func (m *FSM) ExportWithDetails(outfile string, format string, layout string, sc
 
 	for _, t := range m.transitions {
 		var link string
-		if t.action == "" {
-			link = fmt.Sprintf(`"%s" -> "%s" [label="%s"]`, t.from, t.to, t.event)
-		} else {
-			link = fmt.Sprintf(`"%s" -> "%s" [label="%s | %s"]`, t.from, t.to, t.event, t.action)
-		}
-
+		link = fmt.Sprintf(`"%s" -> "%s" [label="%s"]`, t.from, t.to, t.event)
 		dot = dot + "\r\n" + link
 	}
 
