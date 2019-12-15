@@ -22,18 +22,17 @@ func (e *StateError) Error() string {
 }
 
 type transition struct {
-	From   string
-	Event  string
-	Action string
-	To     string
-	Child  *StateMachine
+	From  string
+	Event string
+	To    string
+	Child *StateMachine
 }
 
 //StateEnterFunc ....
 type StateEnterFunc = func(ctx context.Context, event, to string, args ...interface{}) error
 
 //ActionFunc ....
-type ActionFunc = func(ctx context.Context, from, event string, action string, to string, args ...interface{}) error
+type ActionFunc = func(ctx context.Context, from, event string, to string, args ...interface{}) error
 
 //StateExitFunc ....
 type StateExitFunc = func(ctx context.Context, from, event string, args ...interface{}) error
@@ -64,12 +63,18 @@ func NewFromJSON(b []byte) *StateMachine {
 	if err != nil {
 		panic(err)
 	}
+	sm.af = func(ctx context.Context, from, event, to string, args ...interface{}) error {
+		if f, has := sm.actions[event]; has {
+			return f(ctx, from, event, to, args...)
+		}
+		return nil
+	}
 	return &sm
 }
 
 //WithActionFunc ....
-func (m *StateMachine) WithActionFunc(action string, f ActionFunc) *StateMachine {
-	m.actions[action] = f
+func (m *StateMachine) WithActionFunc(event string, f ActionFunc) *StateMachine {
+	m.actions[event] = f
 	return m
 }
 
@@ -91,11 +96,6 @@ func (m *StateMachine) WithStateEnterFunc(f StateEnterFunc) *StateMachine {
 	return m
 }
 
-// //Event ....
-// func (m *StateMachine) Event(ctx context.Context, currentState, ev string, args ...interface{}) error {
-// 	return m.event(ctx, currentState, ev, args...)
-// }
-
 // Event ....
 func (m *StateMachine) Event(ctx context.Context, current, event string, args ...interface{}) error {
 	for _, trans := range m.Transitions {
@@ -106,11 +106,9 @@ func (m *StateMachine) Event(ctx context.Context, current, event string, args ..
 					return err
 				}
 			}
-			if trans.Action != "" {
-				err := m.af(ctx, current, event, trans.Action, trans.To, args...)
-				if err != nil {
-					return err
-				}
+			err := m.af(ctx, current, event, trans.To, args...)
+			if err != nil {
+				return err
 			}
 			if changingStates && m.sef != nil {
 				if err := m.sef(ctx, event, trans.To, args...); err != nil {
@@ -150,12 +148,7 @@ func (m *StateMachine) ExportWithDetails(outfile string, format string, layout s
 
 	for _, t := range m.Transitions {
 		var link string
-		if t.Action == "" {
-			link = fmt.Sprintf(`"%s" -> "%s" [label="%s"]`, t.From, t.To, t.Event)
-		} else {
-			link = fmt.Sprintf(`"%s" -> "%s" [label="%s | %s"]`, t.From, t.To, t.Event, t.Action)
-		}
-
+		link = fmt.Sprintf(`"%s" -> "%s" [label="%s"]`, t.From, t.To, t.Event)
 		dot = dot + "\r\n" + link
 	}
 

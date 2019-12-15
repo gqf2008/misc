@@ -5,14 +5,12 @@
             "From": "from",
             "Event": "ev",
             "To": "to",
-            "Action": "",
             "Child": {
                 "Name": "name",
                 "Transitions": [
                     {
                         "Event": "ev",
-                        "To": "to",
-                        "Action": ""
+                        "To": "to"
                     }
                 ]
             }
@@ -21,14 +19,12 @@
             "From": "from",
             "Event": "ev",
             "To": "to",
-            "Action": "",
             "Child": {
                 "Name": "name",
                 "Transitions": [
                     {
                         "Event": "ev",
-                        "To": "to",
-                        "Action": ""
+                        "To": "to"
                     }
                 ]
             }
