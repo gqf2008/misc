@@ -82,7 +82,7 @@ func FormatID(id uint64) string {
 	node := (id >> 20) & maxNode
 	timestamp := (id >> 28) & maxTimestamp
 	prefix := (id >> 60) & maxPrefix
-	return fmt.Sprintf("%d%s%03d%07d", prefix, time.Unix(0, (int64(timestamp)+epoch)*int64(time.Second)).Format("20060102150405"), node, seq)
+	return fmt.Sprintf("%d%s%03d%07d", prefix, time.Unix(0, (int64(timestamp)+epoch)*int64(time.Second)).Format("060102150405"), node, seq)
 }
 
 //ParserID ....
@@ -99,7 +99,7 @@ func ParserID(id string) (uint64, error) {
 	if err != nil || node > maxNode {
 		return 0, errors.New("ID不合法")
 	}
-	t, err := time.ParseInLocation("20060102150405", id[l-24:l-10], time.Local)
+	t, err := time.ParseInLocation("060102150405", id[l-24:l-10], time.Local)
 	if err != nil {
 		return 0, errors.New("ID不合法")
 	}
