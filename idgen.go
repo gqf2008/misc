@@ -76,19 +76,26 @@ func (p *IDGenerator) NextID() uint64 {
 	return v
 }
 
+//State 获取当前内部状态
+func (p *IDGenerator) State() string {
+	return fmt.Sprintf("prefix=%d,node=%d,last=%d,seq=%d,step=%d", p.prefix, p.nodeID, p.last, p.seq, p.step)
+}
+
+const dataformat = "060102150405"
+
 //FormatID ....
 func FormatID(id uint64) string {
 	seq := id & maxSeq
 	node := (id >> 20) & maxNode
 	timestamp := (id >> 28) & maxTimestamp
 	prefix := (id >> 60) & maxPrefix
-	return fmt.Sprintf("%d%s%03d%07d", prefix, time.Unix(0, (int64(timestamp)+epoch)*int64(time.Second)).Format("060102150405"), node, seq)
+	return fmt.Sprintf("%d%s%03d%07d", prefix, time.Unix(0, (int64(timestamp)+epoch)*int64(time.Second)).Format(dataformat), node, seq)
 }
 
 //ParserID ....
 func ParserID(id string) (uint64, error) {
 	l := len(id)
-	if l < 24 {
+	if l < 22 {
 		return 0, errors.New("ID不合法")
 	}
 	seq, err := strconv.ParseInt(id[l-7:], 10, 64)
@@ -99,20 +106,15 @@ func ParserID(id string) (uint64, error) {
 	if err != nil || node > maxNode {
 		return 0, errors.New("ID不合法")
 	}
-	t, err := time.ParseInLocation("060102150405", id[l-24:l-10], time.Local)
+	t, err := time.ParseInLocation(dataformat, id[l-22:l-10], time.Local)
 	if err != nil {
 		return 0, errors.New("ID不合法")
 	}
 	time := t.Unix()
-	biz, err := strconv.ParseInt(id[:l-24], 10, 64)
+	biz, err := strconv.ParseInt(id[:l-22], 10, 64)
 	if err != nil || biz > maxPrefix {
 		return 0, errors.New("ID不合法")
 	}
 	timestamp := time - epoch
 	return uint64(biz)<<60 | uint64(timestamp)<<28 | uint64(node)<<20 | uint64(seq), nil
-}
-
-//State 获取当前内部状态
-func (p *IDGenerator) State() string {
-	return fmt.Sprintf("prefix=%d,node=%d,last=%d,seq=%d,step=%d", p.prefix, p.nodeID, p.last, p.seq, p.step)
 }
