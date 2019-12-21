@@ -73,7 +73,11 @@ func NewDelayTask(name string) *DelayTask {
 		cli = client
 	})
 	return &DelayTask{
-		name: name,
+		name:     name,
+		poolSize: 200,
+		afterFunc: func(task interface{}, at time.Duration) {
+			log.Printf("At: %d Task: %+v\n", at, task)
+		},
 	}
 }
 
