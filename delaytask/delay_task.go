@@ -78,6 +78,7 @@ func NewDelayTask(name string) *DelayTask {
 		afterFunc: func(task interface{}, at time.Duration) {
 			log.Printf("At: %d Task: %+v\n", at, task)
 		},
+		stop: make(chan struct{}, 10),
 	}
 }
 
@@ -87,6 +88,7 @@ type DelayTask struct {
 	poolSize  int
 	pool      *misc.WorkerPool
 	afterFunc func(interface{}, time.Duration)
+	stop      chan struct{}
 }
 
 //WithAfterFunc ....
@@ -108,10 +110,12 @@ func (t *DelayTask) Start() {
 		MaxIdleWorkerDuration: time.Second * 60 * 5,
 	}
 	t.pool.Start()
+	go t.loop()
 }
 
 //Stop ....
 func (t *DelayTask) Stop() {
+	t.stop <- struct{}{}
 	if t.pool != nil {
 		t.pool.Stop()
 	}
@@ -131,6 +135,11 @@ func (t *DelayTask) loop() {
 		return
 	}
 	for {
+		select {
+		case <-t.stop:
+			return
+		default:
+		}
 		ret := cli.ZRangeByScoreWithScores(t.name, redis.ZRangeBy{
 			Min:    "0",
 			Max:    strconv.Itoa(int(time.Now().Unix())),
