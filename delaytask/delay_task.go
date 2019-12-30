@@ -124,7 +124,7 @@ func (t *DelayTask) Add(task interface{}, deadline time.Duration) error {
 
 //Remove ....
 func (t *DelayTask) Remove(task interface{}) error {
-	return cli.ZRem(t.name, redis.Z{Member: task}).Err()
+	return cli.ZRem(t.name, task).Err()
 }
 
 func (t *DelayTask) loop() {
