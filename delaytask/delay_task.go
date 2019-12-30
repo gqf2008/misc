@@ -20,11 +20,7 @@ type config struct {
 
 //Redis ....
 type Redis struct {
-	Addr         string `default:"redis://127.0.0.1:6379/1?poolsize=200&retries=3&pool_timeout=30"`
-	User         string
-	Passwd       string
-	MaxConns     int `default:"200"`
-	MaxIdleConns int `default:"50"`
+	Addr string `default:"redis://127.0.0.1:6379/1?poolsize=200&retries=3&pool_timeout=30"`
 }
 
 //NewDelayTask ....
@@ -124,6 +120,11 @@ func (t *DelayTask) Stop() {
 //Add ....
 func (t *DelayTask) Add(task interface{}, deadline time.Duration) error {
 	return cli.ZAdd(t.name, redis.Z{Member: task, Score: float64(deadline)}).Err()
+}
+
+//Remove ....
+func (t *DelayTask) Remove(task interface{}) error {
+	return cli.ZRem(t.name, redis.Z{Member: task}).Err()
 }
 
 func (t *DelayTask) loop() {

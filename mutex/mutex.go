@@ -23,11 +23,7 @@ type config struct {
 
 //Redis ....
 type Redis struct {
-	Addr         string `default:"redis://127.0.0.1:6379/0?poolsize=200&retries=3&pool_timeout=30"`
-	User         string
-	Passwd       string
-	MaxConns     int `default:"200"`
-	MaxIdleConns int `default:"50"`
+	Addr string `default:"redis://127.0.0.1:6379/0?poolsize=200&retries=3&pool_timeout=30"`
 }
 
 //NewMutex ....
