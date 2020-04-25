@@ -3,61 +3,13 @@ package rediss
 import (
 	"fmt"
 	"log"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
-
-	"github.com/gqf2008/misc"
-
-	"github.com/go-redis/redis"
 )
 
 //NewMutex ....
 func NewMutex(prefix string) *Mutex {
-	once.Do(func() {
-		conf := config{}
-		err := misc.Fill("REDIS", &conf)
-		if err != nil {
-			panic(err)
-		}
-		URL, err := url.Parse(conf.Addr)
-		if err != nil {
-			panic(err)
-		}
-		var passwd string
-		if URL.User != nil {
-			passwd, _ = URL.User.Password()
-		}
-		val := URL.Query()
-		poolSize, _ := strconv.ParseUint(val.Get("poolsize"), 10, 64)
-		if poolSize == 0 {
-			poolSize = 10
-		}
-		var db = 0
-		if len(URL.Path) > 1 {
-			db, err = strconv.Atoi(URL.Path[1:])
-			if err != nil {
-				panic(err)
-			}
-		}
-		client := redis.NewClient(&redis.Options{
-			Network:      "tcp",
-			Addr:         URL.Host,
-			Password:     passwd,
-			MaxRetries:   3,
-			DialTimeout:  5 * time.Second,
-			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 15 * time.Second,
-			PoolSize:     int(poolSize),
-			DB:           db,
-		})
-		_, err = client.Ping().Result()
-		if err != nil {
-			panic(err)
-		}
-		cli = client
-	})
+	_init()
 	return &Mutex{prefix}
 }
 
