@@ -30,8 +30,13 @@ func (m *Mutex) Lock(key string, ttl time.Duration) error {
 	key = sb.String()
 	for _, interval := range intervalseq {
 		ok, err := cli.SetNX(key, "lock", ttl).Result()
-		if !ok || err != nil {
-			log.Println(err)
+		if err != nil {
+			log.Println("mutex", key, err)
+			time.Sleep(interval)
+			continue
+		}
+		if !ok {
+			log.Println("mutex", key, "false")
 			time.Sleep(interval)
 			continue
 		}
