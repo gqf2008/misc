@@ -16,7 +16,7 @@ func NewDelayTask(name string) *DelayTask {
 		name:     name,
 		poolSize: 200,
 		afterFunc: func(task interface{}, at time.Duration) {
-			err := cli.ZRem(t.name, task).Err()
+			err := cli.ZRem(name, task).Err()
 			log.Printf("At: %d Task: %+v, remove %v\n", at, task, err)
 		},
 		stop: make(chan struct{}, 10),
