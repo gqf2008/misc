@@ -92,18 +92,15 @@ func (t *DelayTask) loop() {
 			Count:  1000,
 		})
 		if err := ret.Err(); err != nil {
-			log.Println(err)
+			log.Println("delay_task", err)
 			time.Sleep(time.Second)
 			continue
 		}
 		for _, val := range ret.Val() {
 			res := cli.ZRem(t.name, val.Member)
 			if err := res.Err(); err != nil {
-				log.Println(err)
+				log.Println("delay_task", err)
 				break
-			}
-			if res.Val() == 0 {
-				continue
 			}
 			for {
 				if t.pool.Serve(func() {
@@ -111,7 +108,8 @@ func (t *DelayTask) loop() {
 				}) {
 					break
 				}
-				time.Sleep(time.Millisecond * 500)
+				log.Println("delay_task not enough worker")
+				time.Sleep(time.Second)
 			}
 		}
 		time.Sleep(time.Second)

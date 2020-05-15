@@ -4,72 +4,65 @@ import (
 	"log"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/go-redis/redis"
 	"github.com/gqf2008/misc"
 )
 
-var once = sync.Once{}
-var cli *redis.Client
-
-type config struct {
-	Redis Redis
-}
-
-//Redis ....
-type Redis struct {
-	Addr string `default:"redis://127.0.0.1:6379/1?poolsize=200&retries=3&pool_timeout=30"`
-}
-
-//NewDelayTask ....
-func NewDelayTask(name string) *DelayTask {
-	once.Do(func() {
-		conf := config{}
-		err := misc.Fill("DELAYTASK", &conf)
+//New ....
+func New(addr, name string) *DelayTask {
+	URL, err := url.Parse(addr)
+	if err != nil {
+		panic(err)
+	}
+	var passwd string
+	if URL.User != nil {
+		passwd, _ = URL.User.Password()
+	}
+	val := URL.Query()
+	poolSize, _ := strconv.ParseUint(val.Get("poolsize"), 10, 64)
+	if poolSize == 0 {
+		poolSize = 10
+	}
+	var db = 0
+	if len(URL.Path) > 1 {
+		db, err = strconv.Atoi(URL.Path[1:])
 		if err != nil {
 			panic(err)
 		}
-		URL, err := url.Parse(conf.Redis.Addr)
-		if err != nil {
-			panic(err)
-		}
-		var passwd string
-		if URL.User != nil {
-			passwd, _ = URL.User.Password()
-		}
-		val := URL.Query()
-		poolSize, _ := strconv.ParseUint(val.Get("poolsize"), 10, 64)
-		if poolSize == 0 {
-			poolSize = 10
-		}
-		var db = 0
-		if len(URL.Path) > 1 {
-			db, err = strconv.Atoi(URL.Path[1:])
-			if err != nil {
-				panic(err)
-			}
-		}
-		client := redis.NewClient(&redis.Options{
-			Network:      "tcp",
-			Addr:         URL.Host,
-			Password:     passwd,
-			MaxRetries:   3,
-			DialTimeout:  5 * time.Second,
-			ReadTimeout:  15 * time.Second,
-			WriteTimeout: 15 * time.Second,
-			PoolSize:     int(poolSize),
-			DB:           db,
-		})
-		_, err = client.Ping().Result()
-		if err != nil {
-			panic(err)
-		}
-		cli = client
+	}
+	client := redis.NewClient(&redis.Options{
+		Network:      "tcp",
+		Addr:         URL.Host,
+		Password:     passwd,
+		MaxRetries:   3,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		PoolSize:     int(poolSize),
+		DB:           db,
 	})
+	_, err = client.Ping().Result()
+	if err != nil {
+		panic(err)
+	}
 	return &DelayTask{
 		name:     name,
+		cli:      client,
+		poolSize: 200,
+		afterFunc: func(task interface{}, at time.Duration) {
+			log.Printf("At: %d Task: %+v\n", at, task)
+		},
+		stop: make(chan struct{}, 10),
+	}
+}
+
+//NewA ....
+func NewA(client *redis.Client, name string) *DelayTask {
+	return &DelayTask{
+		name:     name,
+		cli:      client,
 		poolSize: 200,
 		afterFunc: func(task interface{}, at time.Duration) {
 			log.Printf("At: %d Task: %+v\n", at, task)
@@ -82,6 +75,7 @@ func NewDelayTask(name string) *DelayTask {
 type DelayTask struct {
 	name      string
 	poolSize  int
+	cli       *redis.Client
 	pool      *misc.WorkerPool
 	afterFunc func(interface{}, time.Duration)
 	stop      chan struct{}
@@ -119,12 +113,12 @@ func (t *DelayTask) Stop() {
 
 //Add ....
 func (t *DelayTask) Add(task interface{}, deadline time.Duration) error {
-	return cli.ZAdd(t.name, redis.Z{Member: task, Score: float64(deadline)}).Err()
+	return t.cli.ZAdd(t.name, redis.Z{Member: task, Score: float64(deadline)}).Err()
 }
 
 //Remove ....
 func (t *DelayTask) Remove(task interface{}) error {
-	return cli.ZRem(t.name, task).Err()
+	return t.cli.ZRem(t.name, task).Err()
 }
 
 func (t *DelayTask) loop() {
@@ -141,7 +135,7 @@ func (t *DelayTask) loop() {
 			return
 		default:
 		}
-		ret := cli.ZRangeByScoreWithScores(t.name, redis.ZRangeBy{
+		ret := t.cli.ZRangeByScoreWithScores(t.name, redis.ZRangeBy{
 			Min:    "0",
 			Max:    strconv.Itoa(int(time.Now().Unix())),
 			Offset: 0,
@@ -153,7 +147,7 @@ func (t *DelayTask) loop() {
 			continue
 		}
 		for _, val := range ret.Val() {
-			res := cli.ZRem(t.name, val.Member)
+			res := t.cli.ZRem(t.name, val.Member)
 			if err := res.Err(); err != nil {
 				log.Println(err)
 				break
