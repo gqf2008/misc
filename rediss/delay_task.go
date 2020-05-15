@@ -97,15 +97,13 @@ func (t *DelayTask) loop() {
 			continue
 		}
 		for _, val := range ret.Val() {
-			res := cli.ZRem(t.name, val.Member)
-			if err := res.Err(); err != nil {
-				log.Println("delay_task", err)
-				break
-			}
 			for {
 				if t.pool.Serve(func() {
 					t.afterFunc(val.Member, time.Duration(val.Score))
 				}) {
+					if err := cli.ZRem(t.name, val.Member).Err(); err != nil {
+						log.Println("zrem delay_task", t.name, val.Member, err)
+					}
 					break
 				}
 				log.Println("delay_task not enough worker")
