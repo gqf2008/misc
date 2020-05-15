@@ -16,7 +16,8 @@ func NewDelayTask(name string) *DelayTask {
 		name:     name,
 		poolSize: 200,
 		afterFunc: func(task interface{}, at time.Duration) {
-			log.Printf("At: %d Task: %+v\n", at, task)
+			err := cli.ZRem(t.name, task).Err()
+			log.Printf("At: %d Task: %+v, remove %v\n", at, task, err)
 		},
 		stop: make(chan struct{}, 10),
 	}
@@ -101,9 +102,6 @@ func (t *DelayTask) loop() {
 				if t.pool.Serve(func() {
 					t.afterFunc(val.Member, time.Duration(val.Score))
 				}) {
-					if err := cli.ZRem(t.name, val.Member).Err(); err != nil {
-						log.Println("zrem delay_task", t.name, val.Member, err)
-					}
 					break
 				}
 				log.Println("delay_task not enough worker")
