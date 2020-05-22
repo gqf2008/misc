@@ -134,7 +134,7 @@ func (c *Mediator) TxRollback() error {
 }
 
 //Forward ....
-func (c *Mediator) Forward(exchange, ev string, data interface{}, header Header) error {
+func (c *Mediator) Forward(exchange, ev string, body []byte, header Header) error {
 	select {
 	case b := <-c.block:
 		return errors.New(b.Reason)
@@ -142,7 +142,6 @@ func (c *Mediator) Forward(exchange, ev string, data interface{}, header Header)
 		return err
 	default:
 	}
-	b, _ := json.Marshal(data)
 	return c.ch.Publish(
 		exchange, // exchange
 		ev,
@@ -152,7 +151,7 @@ func (c *Mediator) Forward(exchange, ev string, data interface{}, header Header)
 			Headers:      header,
 			DeliveryMode: 2,
 			Timestamp:    time.Now(),
-			Body:         b,
+			Body:         body,
 		})
 }
 
